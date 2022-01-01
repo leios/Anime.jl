@@ -2,3 +2,13 @@ name = "Anime"
 uuid = "8280bca2-29c5-4da2-9919-6a67e7553c99"
 authors = ["James Schloss <jrs.schloss@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
