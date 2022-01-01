@@ -1,0 +1,4 @@
+name = "Anime"
+uuid = "8280bca2-29c5-4da2-9919-6a67e7553c99"
+authors = ["James Schloss <jrs.schloss@gmail.com>"]
+version = "0.1.0"
