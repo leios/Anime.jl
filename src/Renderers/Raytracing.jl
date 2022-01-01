@@ -300,7 +300,7 @@ function convert_to_img(rays::Array{Ray}, filename)
     save(filename, color_array)
 end
 
-function init_rays(cam::Camera)
+function init_rays!(rays::Array{Ray}, cam::Camera)
 
     res = size(cam.pixels)
     dim = cam.size
@@ -308,7 +308,6 @@ function init_rays(cam::Camera)
     pixel_width = dim ./ res
 
     # create a set of rays that go through every pixel in our grid.
-    rays = Array{Ray}(undef, res[1], res[2])
     for i = 1:res[1]
         for j = 1:res[2]
             pixel_loc = [cam.p[1] + 0.5*dim[1] - i*dim[1]/res[1] + 
@@ -325,15 +324,14 @@ function init_rays(cam::Camera)
 
 end
 
-function ray_trace(objects::Vector{O}, cam::Camera; filename="check.png",
+function ray_trace(objects::Vector{O}, cam::Camera, rays::Array{Ray};
+                   filename="check.png",
                    num_intersections = 10) where {O <: Object}
 
-    @time rays = init_rays(cam)
+    @time rays = init_rays!(rays, cam)
 
     @time rays = propagate(rays, objects, num_intersections)
 
     @time convert_to_img(rays, filename)
-
-    return rays
 
 end

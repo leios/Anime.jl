@@ -27,6 +27,7 @@ function main()
     #spheres = [ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1))]
     #spheres = [Lens([0,0,-25], 20, 1.5), ReflectingSphere([0,50,-100],20),
     #           ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1))]
+#=
     spheres = [Lens([0,0,-25], 20, 1.5), ReflectingSphere([0,50,-100],20),
                ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1)),
                Sphere([30, 25, -60], 20,
@@ -35,17 +36,35 @@ function main()
                       Surface(0.5, 0.0, RGBA(0,1,0,0.5), 1.5)),
                Sphere([-30, 25, -60], 20,
                       Surface(0.5, 0.5, RGBA(1,1,1,0), 1.5))]
+=#
     #bg_spheres = sphere_rand(10, [-400 400; -400 400; -350 -400], 50)
 
     #objects = vcat(sky, spheres, bg_spheres)
-    objects = vcat(sky, spheres)
 
     blank_img = Array{RGB}(undef, 1920, 1080)
     #blank_img = Array{RGB}(undef, 20, 10)
     blank_img[:] .= RGB(0)
 
-    cam = Camera(blank_img, [160,90], -100, [0,20,100])
+    cam = Camera(blank_img, [160,90], -100, [0,0,100])
+    #rays = [Ray([0.0,0.0,0.0],[0.0,0.0,0.0],0) for i = 1:length(blank_img)]
+    rays = Array{Ray}(undef, size(blank_img))
 
-    return ray_trace(objects, cam; num_intersections=20)
+    last_frame = 180
+
+    for i = 1:last_frame
+        angle = 2*pi*(i-1)/last_frame
+        pos = [[sin(angle)*30,cos(angle)*30,-20],
+               [sin(angle+(2*pi/3))*30,cos(angle+(2*pi/3))*30,-20],
+               [sin(angle+(4*pi/3))*30,cos(angle+(4*pi/3))*30,-20]]
+        spheres = [ColoredSphere(pos[1], 15, RGB(0, 0, 0)),
+                   ColoredSphere(pos[2], 15, RGB(0, 0, 0)),
+                   ColoredSphere(pos[3], 15, RGB(0, 0, 0))]
+
+
+        objects = vcat(sky, spheres)
+
+        ray_trace(objects, cam, rays; num_intersections=1,
+                  filename="check"*lpad(i-1,5,"0")*".png")
+    end
 
 end
