@@ -300,38 +300,48 @@ function convert_to_img(rays::Array{Ray}, filename)
     save(filename, color_array)
 end
 
-function init_rays!(rays::Array{Ray}, cam::Camera)
-
-    res = size(cam.pixels)
-    dim = cam.size
-
-    pixel_width = dim ./ res
-
-    # create a set of rays that go through every pixel in our grid.
-    for i = 1:res[1]
-        for j = 1:res[2]
-            pixel_loc = [cam.p[1] + 0.5*dim[1] - i*dim[1]/res[1] + 
-                         0.5*pixel_width[1],
-                         cam.p[2] + 0.5*dim[2] - j*dim[2]/res[2] +
-                         0.5*pixel_width[2],
-                         cam.p[3]+cam.focal_length]
-            l = normalize(pixel_loc - cam.p)
-            rays[res[2]*(i-1) + j] = Ray(l, pixel_loc, RGB(0))
-        end
+function init_rays!(rays, cam::Camera; numcores = 4, numthreads = 256)
+    AT = Array
+    if isa(rays, Array)
+        kernel! = init_rays_kernel!(CPU(), numcores)
+    else
+        kernel! = init_rays_kernel!(CUDADevice(), numthreads)
+        AT = CuArray
     end
 
-    return rays
-
+    kernel!(rays, AT(cam.p), AT([size(cam.pixels)[1], size(cam.pixels)[2]]),
+            AT([cam.size[1], cam.size[2]]),
+            cam.focal_length, ndrange=size(rays))
 end
 
-function ray_trace(objects::Vector{O}, cam::Camera, rays::Array{Ray};
+@kernel function init_rays_kernel!(rays, cam_p, res, dim, focal_length)
+    i,j = @index(Global, NTuple)
+    pixel_width_x = dim[1] / res[1]
+    pixel_width_y = dim[2] / res[2]
+
+    # create a set of rays that go through every pixel in our grid.
+    rays[i,j].p[1] = cam_p[1] + 0.5*dim[1] - i*dim[1]/res[1] + 
+                     0.5*pixel_width_x
+    rays[i,j].p[2] = cam_p[2] + 0.5*dim[2] - j*dim[2]/res[2] +
+                     0.5*pixel_width_y
+    rays[i,j].p[3] = cam_p[3]+focal_length
+
+    #rays[i,j].l = normalize(rays[i,j].p - cam_p)
+    rays[i,j].l .= rays[i,j].p .- cam_p
+
+    rays[i,j].c.r = 0
+    rays[i,j].c.g = 0
+    rays[i,j].c.b = 0
+end
+
+function ray_trace(objects::Vector{O}, cam::Camera, rays;
                    filename="check.png",
                    num_intersections = 10) where {O <: Object}
 
-    @time rays = init_rays!(rays, cam)
+    @time wait(init_rays!(rays, cam))
 
-    @time rays = propagate(rays, objects, num_intersections)
+    #@time rays = propagate(rays, objects, num_intersections)
 
-    @time convert_to_img(rays, filename)
+    #@time convert_to_img(rays, filename)
 
 end

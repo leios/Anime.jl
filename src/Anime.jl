@@ -5,6 +5,13 @@ using Test
 using FLoops
 using Images
 
+using KernelAbstractions
+using CUDA
+
+if has_cuda_gpu()
+    using CUDAKernels
+end
+
 #include("Objects.jl")
 #include("Encoders.jl")
 
