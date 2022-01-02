@@ -14,7 +14,7 @@ struct Rays
     p::T where T <: Union{Array{Float64,3}, CuArray{Float64,3}}
 
     # Color
-    c::T where T <: Union{Array{Float64,1}, CuArray{Float64,1}}
+    c::T where T <: Union{Array{Float64,3}, CuArray{Float64,3}}
 
 end
 
@@ -295,13 +295,18 @@ function pixel_color(position, extents)
     return c
 end
 
-function convert_to_img(rays::Array{Ray}, filename)
-    color_array = Array{RGB}(undef, size(rays)[2], size(rays)[1])
-    for i = 1:length(color_array)
-         color_array[i] = rays[i].c
+# NOTE: Speed this up!
+function convert_to_img(ray_colors::Array{Float64}, cam::Camera, filename;
+                        AT = Array)
+    for i = 1:size(cam.pixels)[1]
+        for j = 1:size(cam.pixels)[2]
+            cam.pixels[i,j] = RGB(ray_colors[i,j,1],
+                                  ray_colors[i,j,2],
+                                  ray_colors[i,j,3])
+        end
     end
 
-    save(filename, color_array)
+    save(filename, cam.pixels)
 end
 
 # NOTE: Extra allocations here when creating the appropriate camera arrays
@@ -337,6 +342,8 @@ end
     # This is for normalization
     temp_sum = 0
     for k = 1:3
+        ray_colors[i,j,k] = 0
+
         ray_directions[i,j,k] = ray_positions[i,j,k] - cam_p[k]
         temp_sum += ray_directions[i,j,k]^2
     end
@@ -347,17 +354,16 @@ end
         ray_directions[i,j,k] /= temp_sum
     end
 
-    ray_colors[:] .= 0
 end
 
 function ray_trace(objects::Vector{O}, cam::Camera, rays;
                    filename="check.png",
-                   num_intersections = 10) where {O <: Object}
+                   num_intersections = 10, AT = Array) where {O <: Object}
 
     CUDA.@time wait(init_rays!(rays, cam))
 
     #@time rays = propagate(rays, objects, num_intersections)
 
-    #@time convert_to_img(rays, filename)
+    @time convert_to_img(Array(rays.c), cam, filename; AT = AT)
 
 end

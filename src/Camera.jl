@@ -4,7 +4,7 @@
 struct Camera
     # Set of all pixels, counts as scene resolution
     # NOTE: Think about having a separate array for each color, RGB (or LAB)
-    pixels
+    pixels::Array{RGB}
 
     # physical size of aperture
     size::Vector{Float64}

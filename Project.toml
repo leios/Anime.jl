@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+CUDAKernels = "72cfdca4-0801-4ab0-bf6a-d52aa10adc57"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 FLoops = "cc61a311-1640-44b5-9fba-1b764f453329"
 Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"

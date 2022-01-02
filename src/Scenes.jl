@@ -46,7 +46,7 @@ function main(;AT=Array)
     #rays = [Ray([0.0,0.0,0.0],[0.0,0.0,0.0],0) for i = 1:length(blank_img)]
     rays = Rays(AT((zeros(size(blank_img)...,3))),
                 AT((zeros(size(blank_img)...,3))),
-                AT(zeros(3)))
+                AT((zeros(size(blank_img)...,3))))
 
     last_frame = 1
 
