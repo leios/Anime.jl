@@ -22,7 +22,7 @@ function sphere_rand(num_spheres, max_extents, max_radius)
     return spheres
 end
 
-function main()
+function main(;AT=Array)
     sky = [SkyBox([0.0, 0.0, 0.0], 1000)]
     #spheres = [ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1))]
     #spheres = [Lens([0,0,-25], 20, 1.5), ReflectingSphere([0,50,-100],20),
@@ -44,7 +44,9 @@ function main()
 
     cam = Camera(blank_img, [160,90], -100, [0,0,100])
     #rays = [Ray([0.0,0.0,0.0],[0.0,0.0,0.0],0) for i = 1:length(blank_img)]
-    rays = Array{Ray}(undef, size(blank_img))
+    rays = Rays(AT((zeros(size(blank_img)...,3))),
+                AT((zeros(size(blank_img)...,3))),
+                AT(zeros(3)))
 
     last_frame = 1
 
