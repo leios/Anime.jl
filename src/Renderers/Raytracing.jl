@@ -2,10 +2,6 @@ function Base.isapprox(n1::Nothing, n2::Nothing)
     return true
 end
 
-struct Ray
-    blah::Float64
-end
-
 struct Rays
     # Velocity direction vector
     l::T where T <: Union{Array{Float64,3}, CuArray{Float64,3}}
@@ -76,14 +72,10 @@ struct SkyBox <: Object
 end
 
 # NOTE: rename without "sphere" so it can be used for other objects
-function sphere_normal_at(ray, sphere)
-    n = normalize(ray.p .- sphere.p)
+function sphere_normal_at(ray_pos, sphere)
+    n = normalize(ray_pos .- sphere.p)
 
     return n
-end
-
-function inside_of(ray::Ray, sphere)
-    return inside_of(ray.p, sphere)
 end
 
 function inside_of(pos, sphere)
@@ -100,21 +92,20 @@ end
 #       moving through, so...
 #       n_2*v = n_1*l + (n_1*cos(theta_1) - n_2*cos(theta_2))*n
 #       Other approximations: ior = n_1/n_2, c = -n*l
-function refract(ray, lens::Sphere, ior)
-    n = sphere_normal_at(ray, lens)
+function refract!(ray_pos, ray_dir, lens::Sphere, ior)
+    n = sphere_normal_at(ray_pos, lens)
 
-    if dot(n, ray.l) > 0
+    if dot(n, ray_dir) > 0
         n .*= -1
     end
-    c = dot(-n, ray.l);
+    c = dot(-n, ray_dir);
     d = 1.0 - ior^2 * (1.0 - c^2);
 
     if (d < 0.0)
-        return reflect(ray, n)
+        reflect!(ray_dir, ray_pos, n)
     end
 
-    ray_vel = ior * ray.l + (ior * c - sqrt(d)) * n;
-    return Ray(ray_vel, ray.p, ray.c)
+    ray_dir = ior * raydir + (ior * c - sqrt(d)) * n;
 end
 
 abstract type Wall <: Object end;
@@ -144,18 +135,17 @@ end
 # note: for reflection, l_x -> l_x, but l_y -> -l_y
 #       In this case, the y component of l = cos(theta)*n
 #       so new vector: v = l + 2cos(theta)*n
-function reflect(ray, n)
-    ray_vel = ray.l .- 2*dot(ray.l, n).*n
-    ray_pos = ray.p .+ 0.001*ray.l
-    return Ray(ray_vel, ray_pos, ray.c)
+function reflect!(ray_pos, ray_dir, n)
+    ray_dir = ray_dir .- 2*dot(ray_dir, n).*n
+    ray_pos = ray_pos .+ 0.001*ray_dir
 end
 
-function intersection(ray::Ray, sphere::S;
+function intersection(ray_pos, ray_dir, sphere::S;
                       threshold = 0.01) where
                       {S <: Union{Sphere, SkyBox}}
-    relative_dist = ray.p-sphere.p
-    a = dot(ray.l, ray.l)
-    b = 2.0 * dot(relative_dist, ray.l)
+    relative_dist = ray_pos-sphere.p
+    a = dot(ray_dir, ray_dir)
+    b = 2.0 * dot(relative_dist, ray_dir)
     c = dot(relative_dist, relative_dist) - sphere.r*sphere.r
     discriminant = b*b - 4*a*c
 
@@ -168,49 +158,55 @@ function intersection(ray::Ray, sphere::S;
         max = maximum(roots)
 
         if min > threshold
-            return (min)*ray.l
+            return (min)*ray_dir
         elseif max > threshold
-            return (max)*ray.l
+            return (max)*ray_dir
         else
             return nothing
         end
     else
         # Returns nothing if tangential
         return nothing
-        #return (-b/(2*a))*ray.l
+        #return (-b/(2*a))*ray_dir
     end 
 end
 
 
-function intersection(ray::Ray, wall::W) where {W <: Wall}
-    intersection_pt = -dot((ray.p .- wall.p),wall.n)/dot(ray.l, wall.n)
+function intersection(ray_pos, ray_dir, wall::W) where {W <: Wall}
+    intersection_pt = -dot((ray_pos .- wall.p),wall.n)/dot(ray_dir, wall.n)
 
     if isfinite(intersection_pt) && intersection_pt > 0 &&
        intersection_pt != NaN
-        return intersection_pt*ray.l
+        return intersection_pt*ray_dir
     else
         return nothing
     end
 end
 
-function propagate(rays::Array{Ray}, objects::Vector{O},
+function propagate!(rays::Rays, objects::Vector{O},
                     num_intersections) where {O <: Object}
-    @floop ThreadedEx() for j = 1:length(rays)
-        rays[j] = propagate(rays[j], objects, num_intersections)
+    @floop ThreadedEx() for i = 1:size(rays.p)[1]
+        for j = 1:size(rays.p)[2]
+            output = propagate!(rays.p[i,j,:], rays.l[i,j,:], rays.c[i,j,:],
+                                objects, num_intersections)
+            rays.p[i,j,:] .= output[1][:]
+            rays.l[i,j,:] .= output[2][:]
+            rays.c[i,j,:] .= output[3][:]
+        end
     end
 
     return rays
 end
 
-function propagate(ray::Ray, objects::Vector{O},
+function propagate!(ray_pos, ray_dir, ray_clr, objects::Vector{O},
                    num_intersections) where {O <: Object}
 
     for i = 1:num_intersections
-        if ray.l != zeros(length(ray.l))
+        if ray_dir != zeros(length(ray_dir))
             intersect_final = [Inf, Inf]
             intersected_object = nothing
             for object in objects
-                intersect = intersection(ray, object)
+                intersect = intersection(ray_pos, ray_dir, object)
                 if intersect != nothing &&
                    sum(intersect[:].^2) < sum(intersect_final[:].^2)
                     intersect_final = intersect
@@ -219,49 +215,57 @@ function propagate(ray::Ray, objects::Vector{O},
             end
 
             if intersect_final != nothing
-                ray = Ray(ray.l, ray.p .+ intersect_final, ray.c)
+                #ray = Ray(ray.l, ray.p .+ intersect_final, ray.c)
                 if typeof(intersected_object) == Sphere
-                    reflected_ray = ray
-                    refracted_ray = ray
-                    colored_ray = ray
+                    #reflected_ray = ray
+                    #refracted_ray = ray
+                    #colored_ray = ray
                     if !isapprox(intersected_object.s.t, 0)
                         ior = 1/intersected_object.s.ior
-                        if dot(ray.l,
-                               sphere_normal_at(ray,
+                        if dot(ray_dir,
+                               sphere_normal_at(ray_pos, ray_dir,
                                                 intersected_object)) > 0
                             ior = intersected_object.s.ior
                         end
 
-                        refracted_ray = refract(ray, intersected_object, ior)
-                        refracted_ray = propagate(refracted_ray, objects,
-                                                  num_intersections-i)
+                        refract!(ray_pos, ray_direction,
+                                 intersected_object, ior)
+                        propagate!(ray_pos, ray_dir, ray_clr, objects,
+                                   num_intersections-i)
                     end
 
                     if !isapprox(intersected_object.s.r, 0)
-                        n = sphere_normal_at(ray, intersected_object)
-                        reflected_ray = reflect(ray, n)
-                        reflected_ray = propagate(reflected_ray, objects,
-                                                  num_intersections-i)
+                        n = sphere_normal_at(ray_pos, ray_dir,
+                                             intersected_object)
+                        reflect(ray_pos, ray_dir, n)
+                        propagate!(ray_pos, ray_dir, ray_clr, objects,
+                                   num_intersections-i)
                     end
 
                     if !isapprox(intersected_object.s.c.alpha, 0)
                         ray_color = RGB(intersected_object.s.c)
-                        ray_vel = zeros(length(ray.l))
-                        colored_ray = Ray(ray_vel, ray.p, ray_color)
+                        ray_dir .= zeros(length(ray_dir))
+                        ray_clr[1] = ray_color.r
+                        ray_clr[2] = ray_color.g
+                        ray_clr[3] = ray_color.b
                     end
 
+#=
                     ray_color = intersected_object.s.t*refracted_ray.c +
                                 intersected_object.s.r*reflected_ray.c +
                                 intersected_object.s.c.alpha*colored_ray.c
 
                     ray = Ray(zeros(length(ray.l)), ray.p, ray_color)
+=#
 
                 elseif typeof(intersected_object) == Mirror
-                    ray = reflect(ray, intersected_object.n)
+                    reflect!(ray_pos, ray_dir, intersected_object.n)
                 elseif typeof(intersected_object) == SkyBox
-                    ray_color = pixel_color(ray.p, 1000)
-                    ray_vel = zeros(length(ray.l))
-                    ray = Ray(ray_vel, ray.p, ray_color)
+                    temp_clr = pixel_color(ray_pos, 100)
+                    ray_clr[1] = temp_clr.r
+                    ray_clr[2] = temp_clr.g
+                    ray_clr[3] = temp_clr.b
+                    ray_dir .= zeros(length(ray_dir))
                 end
             else
                 println("hit nothing")
@@ -269,7 +273,8 @@ function propagate(ray::Ray, objects::Vector{O},
         end
     end
 
-    return ray
+    return [ray_pos, ray_dir, ray_clr]
+
 end
 
 function pixel_color(position, extents)
@@ -306,7 +311,7 @@ function convert_to_img(ray_colors::Array{Float64}, cam::Camera, filename;
         end
     end
 
-    save(filename, cam.pixels)
+    save(filename, transpose(cam.pixels))
 end
 
 # NOTE: Extra allocations here when creating the appropriate camera arrays
@@ -362,7 +367,7 @@ function ray_trace(objects::Vector{O}, cam::Camera, rays;
 
     CUDA.@time wait(init_rays!(rays, cam))
 
-    #@time rays = propagate(rays, objects, num_intersections)
+    @time rays = propagate!(rays, objects, num_intersections)
 
     @time convert_to_img(Array(rays.c), cam, filename; AT = AT)
 

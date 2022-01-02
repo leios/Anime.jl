@@ -27,6 +27,7 @@ function main(;AT=Array)
     #spheres = [ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1))]
     #spheres = [Lens([0,0,-25], 20, 1.5), ReflectingSphere([0,50,-100],20),
     #           ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1))]
+#=
     spheres = [Lens([0,0,-25], 20, 1.5), ReflectingSphere([0,50,-100],20),
                ColoredSphere([-50,0,-25], 20, RGB(0, 0, 1)),
                Sphere([30, 25, -60], 20,
@@ -35,7 +36,8 @@ function main(;AT=Array)
                       Surface(0.5, 0.0, RGBA(0,1,0,0.5), 1.5)),
                Sphere([-30, 25, -60], 20,
                       Surface(0.5, 0.5, RGBA(1,1,1,0), 1.5))]
-    bg_spheres = sphere_rand(10, [-400 400; -400 400; -350 -400], 50)
+=#
+    #bg_spheres = sphere_rand(10, [-400 400; -400 400; -350 -400], 50)
 
 
     blank_img = Array{RGB}(undef, 1920, 1080)
@@ -51,19 +53,17 @@ function main(;AT=Array)
     last_frame = 1
 
     for i = 1:last_frame
-#=
         angle = 2*pi*(i-1)/last_frame
-        pos = [[sin(angle)*30,cos(angle)*30,-20],
-               [sin(angle+(2*pi/3))*30,cos(angle+(2*pi/3))*30,-20],
-               [sin(angle+(4*pi/3))*30,cos(angle+(4*pi/3))*30,-20]]
-        spheres = [ColoredSphere(pos[1], 15, RGB(0, 0, 0)),
-                   ColoredSphere(pos[2], 15, RGB(0, 0, 0)),
-                   ColoredSphere(pos[3], 15, RGB(0, 0, 0))]
-=#
+        pos = [[sin(angle)*30,cos(angle)*30,-10],
+               [sin(angle+(2*pi/3))*30,cos(angle+(2*pi/3))*30,-10],
+               [sin(angle+(4*pi/3))*30,cos(angle+(4*pi/3))*30,-10]]
+        spheres = [ColoredSphere(pos[1], 15, RGB(1, 0.25, 0.25)),
+                   ColoredSphere(pos[2], 15, RGB(0.25, 1, 0.25)),
+                   ColoredSphere(pos[3], 15, RGB(0.25, 0.25, 1))]
 
 
-        #objects = vcat(sky, spheres)
-        objects = vcat(sky, spheres, bg_spheres)
+        objects = vcat(sky, spheres)
+        #objects = vcat(sky, spheres, bg_spheres)
 
         ray_trace(objects, cam, rays; num_intersections=10,
                   filename="check"*lpad(i-1,5,"0")*".png")
