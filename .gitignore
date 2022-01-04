@@ -2,3 +2,5 @@ Manifest.toml
 *.png
 *.mp4
 *.pdf
+
+*bkup*
